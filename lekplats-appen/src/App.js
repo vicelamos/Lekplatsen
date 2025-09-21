@@ -1,7 +1,7 @@
-// src/App.js
+// src/App.js (Korrekt version med inline-bakgrund)
 
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'; // Importera Outlet!
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 // Importera alla dina sid-komponenter
@@ -14,14 +14,22 @@ import Login from './Login.js';
 // Importera din Header
 import Header from './Header.js';
 
-// 1. Vi skapar en Layout-komponent.
-// Denna komponent renderar Headern och sedan "platsen" där barn-rutterna ska visas.
-const AppLayout = () => {
+// Vi definierar vår Layout-komponent
+const AppLayout = ({ user }) => { // Ta emot user-propen här
+  
+  // Skapa ett JavaScript-objekt för våra stilar
+  const layoutStyle = {
+    backgroundImage: `url(${process.env.PUBLIC_URL}/background-pattern.jpg)`,
+    backgroundRepeat: 'repeat',
+  };
+
   return (
-    <div className="app-container">
+    // Applicera stil-objektet direkt på div:en med "style"-attributet
+    <div className="app-container" style={layoutStyle}>
       <Header />
       <main>
-        <Outlet /> {/* <Outlet /> är platshållaren för barn-rutterna */}
+        {/* Skicka vidare user-propen till Outlet's kontext, om nödvändigt i framtiden */}
+        <Outlet context={{ user }} />
       </main>
     </div>
   );
@@ -40,14 +48,11 @@ function App() {
 
   return (
     <BrowserRouter>
-      {/* 2. Din huvud-Routes-komponent */}
       <Routes>
-        {/* Rutt 1: Startsidan (Splash-sidan) har ingen Header */}
         <Route path="/" element={<Home />} />
 
-        {/* Rutt 2: En "Layout Route" som använder AppLayout.
-            Alla rutter inuti denna kommer att renderas i <Outlet />-platsen. */}
-        <Route element={<AppLayout />}>
+        {/* Skicka med user-propen till AppLayout */}
+        <Route element={<AppLayout user={user} />}>
           <Route path="/lekplatser" element={<LekplatsLista />} />
           <Route path="/lekplats/:id" element={<LekplatsDetalj user={user} />} />
           <Route path="/ny-lekplats" element={<NyLekplatsForm />} />
