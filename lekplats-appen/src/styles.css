@@ -1,0 +1,93 @@
+/* src/styles.css */
+
+/* -- 1. CSS Variabler: Vår nya gröna färgpalett och typsnitt -- */
+:root {
+  --primary-green: #2E7D32; /* En mörk, fyllig grön */
+  --light-green-bg: #E8F5E9; /* Mycket ljus grön för bakgrunder */
+  --dark-text: #212121;      /* Nästan svart för text */
+  --card-bg: #FFFFFF;        /* Vit bakgrund för korten */
+  --font-header: 'Poppins', sans-serif;
+  --font-body: 'Lato', sans-serif;
+}
+
+/* -- 2. Grundstilar och bakgrundsmönster -- */
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--light-green-bg);
+  color: var(--dark-text);
+  
+  /* Här lägger vi in ditt mönster! */
+  background-image: url('/background-pattern.png'); /* Hämtar från public-mappen */
+  background-repeat: repeat;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-header);
+  color: var(--primary-green);
+}
+
+/* -- 3. Huvudlayout -- */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 80px 20px; /* Padding i botten för att inte döljas av menyn */
+}
+
+/* -- 4. Header (nytt!) -- */
+.app-header {
+  padding: 20px 0;
+  margin-bottom: 30px;
+  text-align: center;
+  border-bottom: 2px solid var(--primary-green);
+}
+
+.app-header .title {
+  font-size: 2.5rem;
+  color: var(--primary-green);
+  text-decoration: none;
+}
+
+/* -- 5. Lekplats-Grid (ersätter den gamla listan) -- */
+.lekplats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Responsivt grid */
+  gap: 30px;
+}
+
+/* -- 6. Lekplats-Kort (ny design) -- */
+.lekplats-kort {
+  background-color: var(--card-bg);
+  border-radius: 15px;
+  text-decoration: none;
+  color: var(--dark-text);
+  overflow: hidden; /* Gömmer delar av bilden som är utanför */
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.lekplats-kort:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.lekplats-kort-bild {
+  width: 100%;
+  height: 200px; /* Fast höjd för bilderna */
+  object-fit: cover; /* Ser till att bilden fyller ytan snyggt */
+  display: block;
+}
+
+.lekplats-kort-info {
+  padding: 20px;
+}
+
+.lekplats-kort-info h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.lekplats-kort-info p {
+  margin: 0;
+  color: #666;
+}
