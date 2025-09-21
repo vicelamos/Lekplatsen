@@ -1,14 +1,20 @@
 // src/Login.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from 'react-router-dom';
 
-function Login() {
+function Login({ user }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const auth = getAuth();
+   // NYTT: Om användaren redan är inloggad, navigera till startsidan
+  useEffect(() => {
+    if (user) {
+      navigate('/lekplatser');
+    }
+  }, [user, navigate]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
