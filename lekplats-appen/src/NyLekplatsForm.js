@@ -1,30 +1,47 @@
-// src/NyLekplatsForm.js
+// src/NyLekplatsForm.js (Komplett och slutgiltig version)
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react'; // Lägg till useEffect
 import { useNavigate } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, addDoc, doc, getDoc, GeoPoint } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, GeoPoint } from 'firebase/firestore'; // Lägg till doc, getDoc
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { GoogleMap, useLoadScript, MarkerF } from '@react-google-maps/api';
+
+// Kartans inställningar
+const libraries = ["places"];
+const mapContainerStyle = {
+  height: "400px",
+  width: "100%",
+  borderRadius: "15px",
+};
+const center = { // Start-position för kartan (centrala Borås)
+  lat: 57.72103,
+  lng: 12.9401,
+};
 
 function NyLekplatsForm() {
   const navigate = useNavigate();
-
-  // State för all textdata i formuläret
-  const [textData, setTextData] = useState({
+  const [formData, setFormData] = useState({
     namn: '',
     adress: '',
     kommun: 'Borås',
     beskrivning: '',
-    latitud: '',
-    longitud: '',
   });
-
-  // NYTT: State för att hålla ALLA möjliga val vi hämtar från databasen
+  const [bild, setBild] = useState(null);
+  const [marker, setMarker] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  // States för dynamiska checkboxes
   const [allaAlternativ, setAllaAlternativ] = useState({ utrustning: [], faciliteter: [] });
-
-  // NYTT: State för att hålla de val ANVÄNDAREN har gjort (listor med textsträngar)
   const [valdaAlternativ, setValdaAlternativ] = useState({ utrustning: [], faciliteter: [] });
 
-  // NYTT: Hämta konfigurationen när komponenten laddas
+  // Ladda Google Maps-skriptet
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+    libraries,
+  });
+
+  // Hämta konfigurationen för checkboxes när komponenten laddas
   useEffect(() => {
     const hamtaKonfiguration = async () => {
       const docRef = doc(db, "konfiguration", "alternativ");
@@ -38,18 +55,21 @@ function NyLekplatsForm() {
     hamtaKonfiguration();
   }, []);
 
-  // Funktion för textfälten (oförändrad)
-  const handleChange = (e) => {
+  const handleTextChange = (e) => {
     const { name, value } = e.target;
-    setTextData(prevState => ({ ...prevState, [name]: value }));
+    setFormData(prevState => ({ ...prevState, [name]: value }));
   };
 
-  // NY, smartare funktion för checkboxes
+  const handleBildChange = (e) => {
+    if (e.target.files[0]) {
+      setBild(e.target.files[0]);
+    }
+  };
+
+  // Funktion för de dynamiska checkboxarna
   const handleCheckboxChange = (e) => {
     const { name, checked, dataset } = e.target;
-    const { category } = dataset; // "utrustning" eller "faciliteter"
-
-    // Om ikryssad, lägg till i listan. Om urkryssad, ta bort från listan.
+    const { category } = dataset;
     if (checked) {
       setValdaAlternativ(prevState => ({
         ...prevState,
@@ -63,72 +83,140 @@ function NyLekplatsForm() {
     }
   };
 
+  const onMapClick = useCallback((e) => {
+    setMarker({
+      lat: e.latLng.lat(),
+      lng: e.latLng.lng(),
+    });
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!marker) {
+      alert("Välj en position på kartan!");
+      return;
+    }
+    setLoading(true);
+
+    let bildUrl = '';
+    if (bild) {
+      try {
+        const storage = getStorage();
+        const bildRef = ref(storage, `lekplats_bilder/${Date.now()}_${bild.name}`);
+        const uploadResult = await uploadBytes(bildRef, bild);
+        bildUrl = await getDownloadURL(uploadResult.ref);
+      } catch (error) {
+        console.error("Fel vid bilduppladdning: ", error);
+        alert("Något gick fel med bilduppladdningen.");
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const newPlayground = {
-        ...textData,
-        utrustning: valdaAlternativ.utrustning, // Spara den nya arrayen
-        faciliteter: valdaAlternativ.faciliteter, // Spara den nya arrayen
-        position: new GeoPoint(parseFloat(textData.latitud), parseFloat(textData.longitud)),
+        ...formData,
+        bildUrl: bildUrl,
+        position: new GeoPoint(marker.lat, marker.lng),
         status: 'publicerad',
         snittbetyg: 0,
         antalIncheckningar: 0,
+        utrustning: valdaAlternativ.utrustning, // Spara den valda utrustningen
+        faciliteter: valdaAlternativ.faciliteter, // Spara de valda faciliteterna
       };
-      delete newPlayground.latitud;
-      delete newPlayground.longitud;
 
       const docRef = await addDoc(collection(db, 'lekplatser'), newPlayground);
       navigate(`/lekplats/${docRef.id}`);
     } catch (error) {
       console.error("Fel vid sparande av dokument: ", error);
       alert("Något gick fel, kunde inte spara lekplatsen.");
+      setLoading(false);
     }
   };
 
+  if (loadError) return "Error loading maps";
+  if (!isLoaded) return "Loading Maps...";
+
   return (
-    <form onSubmit={handleSubmit} style={{maxWidth: '600px', margin: '0 auto', textAlign: 'left'}}>
+    <form onSubmit={handleSubmit} className="form-container">
       <h2>Lägg till ny lekplats</h2>
       
-      {/* Textfälten är i princip oförändrade */}
-      <label>Namn:</label>
-      <input type="text" name="namn" value={textData.namn} onChange={handleChange} required />
-      {/* ... andra textfält som adress, beskrivning etc. ... */}
-      <label>Latitud:</label>
-      <input type="number" step="any" name="latitud" value={textData.latitud} onChange={handleChange} required />
-      <label>Longitud:</label>
-      <input type="number" step="any" name="longitud" value={textData.longitud} onChange={handleChange} required />
+      <div className="form-group">
+        <label>Namn:</label>
+        <input type="text" name="namn" value={formData.namn} onChange={handleTextChange} required />
+      </div>
+      
+      <div className="form-group">
+        <label>Huvudbild för lekplatsen:</label>
+        <input type="file" onChange={handleBildChange} accept="image/*" />
+      </div>
 
-      {/* ---- NYTT: Dynamiskt genererade checkboxes ---- */}
-      <h3>Utrustning</h3>
-      {allaAlternativ.utrustning.map(item => (
-        <div key={item}>
-          <input 
-            type="checkbox" 
-            name={item}
-            data-category="utrustning"
-            checked={valdaAlternativ.utrustning.includes(item)}
-            onChange={handleCheckboxChange}
-          />
-          <label>{item.charAt(0).toUpperCase() + item.slice(1)}</label> {/* Gör första bokstaven stor */}
+      <div className="form-group">
+        <label>Välj position på kartan:</label>
+        <GoogleMap
+          id="map"
+          mapContainerStyle={mapContainerStyle}
+          zoom={12}
+          center={center}
+          onClick={onMapClick}
+        >
+          {marker && <MarkerF position={{ lat: marker.lat, lng: marker.lng }} />}
+        </GoogleMap>
+        {marker && <p>Position vald: Lat: {marker.lat.toFixed(4)}, Lng: {marker.lng.toFixed(4)}</p>}
+      </div>
+
+      <div className="form-group">
+        <label>Adress (frivilligt):</label>
+        <input type="text" name="adress" value={formData.adress} onChange={handleTextChange} />
+      </div>
+
+      <div className="form-group">
+        <label>Beskrivning (frivilligt):</label>
+        <textarea name="beskrivning" value={formData.beskrivning} onChange={handleTextChange} />
+      </div>
+      
+      {/* Återinförda dynamiska checkboxes */}
+ <div className="fieldset">
+        <h3>Utrustning</h3>
+        <div className="checkbox-container">
+          {allaAlternativ.utrustning.map(item => (
+            <div key={item} className="checkbox-group">
+              {/* ... din input och label är oförändrade ... */}
+              <input 
+                type="checkbox" 
+                name={item}
+                id={`utrustning-${item}`}
+                data-category="utrustning"
+                checked={valdaAlternativ.utrustning.includes(item)}
+                onChange={handleCheckboxChange}
+              />
+              <label htmlFor={`utrustning-${item}`}>{item.charAt(0).toUpperCase() + item.slice(1)}</label>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
 
-      <h3>Faciliteter</h3>
-      {allaAlternativ.faciliteter.map(item => (
-        <div key={item}>
-          <input 
-            type="checkbox" 
-            name={item}
-            data-category="faciliteter"
-            checked={valdaAlternativ.faciliteter.includes(item)}
-            onChange={handleCheckboxChange}
-          />
-          <label>{item.charAt(0).toUpperCase() + item.slice(1)}</label>
+<div className="fieldset">
+        <h3>Faciliteter</h3>
+        <div className="checkbox-container">
+          {allaAlternativ.faciliteter.map(item => (
+            <div key={item} className="checkbox-group">
+              {/* ... din input och label är oförändrade ... */}
+              <input 
+                type="checkbox" 
+                name={item}
+                id={`faciliteter-${item}`}
+                data-category="faciliteter"
+                checked={valdaAlternativ.faciliteter.includes(item)}
+                onChange={handleCheckboxChange}
+              />
+              <label htmlFor={`faciliteter-${item}`}>{item.charAt(0).toUpperCase() + item.slice(1)}</label>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
 
-      <button type="submit">Spara lekplats</button>
+      <button type="submit" disabled={loading}>{loading ? "Sparar..." : "Spara lekplats"}</button>
     </form>
   );
 }

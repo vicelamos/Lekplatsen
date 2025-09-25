@@ -1,29 +1,36 @@
-// src/CheckinForm.js (Uppdaterad fil)
+// src/CheckinForm.js
+
 import React, { useState } from 'react';
 import { db } from './firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { FaStar } from 'react-icons/fa'; // Importera stjärn-ikonen
 
-// 1. Ta emot 'onCheckinSuccess' som en prop här
 function CheckinForm({ user, lekplatsId, onCheckinSuccess }) {
-  const [betyg, setBetyg] = useState(3);
+  const [betyg, setBetyg] = useState(0);
+  const [hoverBetyg, setHoverBetyg] = useState(0); // För hovringseffekt på stjärnor
   const [kommentar, setKommentar] = useState('');
   const [bild, setBild] = useState(null);
+  const [bildNamn, setBildNamn] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleBildChange = (e) => {
-    if (e.target.files[0]) {
-      setBild(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+      setBild(file);
+      setBildNamn(file.name);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (betyg === 0) {
+      alert("Vänligen välj ett betyg genom att klicka på en stjärna.");
+      return;
+    }
     setLoading(true);
 
     let bildUrl = '';
-
-    // Ladda upp bilden om en fil har valts
     if (bild) {
       const storage = getStorage();
       const bildRef = ref(storage, `incheckningar/${user.uid}/${Date.now()}_${bild.name}`);
@@ -31,43 +38,70 @@ function CheckinForm({ user, lekplatsId, onCheckinSuccess }) {
       bildUrl = await getDownloadURL(uploadResult.ref);
     }
 
-    // Skapa incheckningsdokumentet i Firestore
     await addDoc(collection(db, 'incheckningar'), {
       lekplatsId: lekplatsId,
       userId: user.uid,
-      userSmeknamn: user.email.split('@')[0], // Enkel version av smeknamn
+      userSmeknamn: user.email.split('@')[0],
       timestamp: serverTimestamp(),
       betyg: Number(betyg),
       kommentar: kommentar,
-      bildUrl: bildUrl, // Kan vara tom sträng
+      bildUrl: bildUrl,
     });
 
-    // Återställ formuläret
-    setBetyg(3);
-    setKommentar('');
-    setBild(null);
     setLoading(false);
-    
-    // 2. Anropa funktionen för att dölja formuläret istället för att ladda om sidan
     onCheckinSuccess(); 
   };
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <h3>Checka in!</h3>
-      <label>Betyg (1-5):</label>
-      <input type="number" min="1" max="5" value={betyg} onChange={(e) => setBetyg(e.target.value)} required />
-      
-      <label>Kommentar:</label>
-      <textarea value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
-      
-      <label>Ladda upp bild:</label>
-      <input type="file" onChange={handleBildChange} />
-      
-      <button type="submit" disabled={loading}>
-        {loading ? 'Sparar...' : 'Skicka incheckning'}
-      </button>
-    </form>
+   return (
+    // Den vita rutan runt formuläret
+    <div className="checkin-form-container">
+      <form onSubmit={handleSubmit}>
+        {/* Rubriken */}
+        <h3>Checka in!</h3>
+        
+        <div className="form-group">
+          {/* 1. Texten "Betyg:" är nu borttagen */}
+          <div className="star-rating-input">
+            {[...Array(5)].map((_, index) => {
+              const ratingValue = index + 1;
+              return (
+                <FaStar 
+                  key={ratingValue}
+                  className={ratingValue <= (hoverBetyg || betyg) ? 'filled' : ''}
+                  onClick={() => setBetyg(ratingValue)}
+                  onMouseEnter={() => setHoverBetyg(ratingValue)}
+                  onMouseLeave={() => setHoverBetyg(0)}
+                />
+              );
+            })}
+          </div>
+        </div>
+        
+        <div className="form-group">
+          {/* 2. "Kommentar:" är vänsterställd som standard */}
+          <label>Kommentar:</label>
+          <textarea value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
+        </div>
+
+        <div className="form-group">
+          {/* 3. Texten "Ladda upp bild:" är nu borttagen */}
+          <div>
+            {/* 4. Knappen har bytt namn till "Ladda upp bild" och är grön */}
+            <label htmlFor="file-upload" className="input-file-label">
+              Ladda upp bild
+            </label>
+            <input id="file-upload" className="input-file-hidden" type="file" onChange={handleBildChange} accept="image/*" />
+            <span>{bildNamn || "Ingen fil har valts"}</span>
+          </div>
+        </div>
+        
+        <div className="form-action-center">
+          <button type="submit" className="button-primary" disabled={loading}>
+            {loading ? 'Sparar...' : 'Skicka incheckning'}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

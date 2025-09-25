@@ -1,8 +1,12 @@
-// src/LekplatsLista.js (Uppdaterad)
+// src/LekplatsLista.js (Uppdaterad med fallback-bild)
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
+
+// ---- ÄNDRING 1: Definiera din standardbild som en konstant ----
+const BILD_SAKNAS_URL = "https://firebasestorage.googleapis.com/v0/b/lekplatsen-907fb.firebasestorage.app/o/bild%20saknas.png?alt=media&token=3acbfa69-dea8-456b-bbe2-dd95034f773f";
 
 function LekplatsLista() {
   const [lekplatser, setLekplatser] = useState([]);
@@ -22,21 +26,22 @@ function LekplatsLista() {
 
   return (
     <div>
-      {/* Grid-behållaren */}
       <div className="lekplats-grid">
         {lekplatser.map(lekplats => (
-          // Hela kortet är en länk
           <Link to={`/lekplats/${lekplats.id}`} key={lekplats.id} className="lekplats-kort">
-            {/* Vi behöver en bild här. Vi kan använda incheckningsbilder senare. */}
+            
+            {/* ---- ÄNDRING 2: Använd "ELLER"-logik för bildkällan ---- */}
             <img 
-              src="https://via.placeholder.com/300x200?text=Lekplats" // Platshållarbild
+              src={lekplats.bildUrl || BILD_SAKNAS_URL}
               alt={lekplats.namn} 
               className="lekplats-kort-bild" 
             />
+            
             <div className="lekplats-kort-info">
-              <h3>{lekplats.namn}</h3>
-              <p>{lekplats.kommun}</p>
+              <h3 className="namn">{lekplats.namn}</h3>
+              <p className="adress">{lekplats.adress}</p>
             </div>
+
           </Link>
         ))}
       </div>
