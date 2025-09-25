@@ -9,9 +9,6 @@ import { getFirestore } from "firebase-admin/firestore";
 initializeApp();
 const db = getFirestore();
 
-/**
- * Funktion 1: Skapar en användarprofil
- */
 export const createUserProfile = onUserCreate((event) => {
   const user = event.data;
   logger.info("Ny användare:", user.uid, "Skapar profil.");
@@ -27,21 +24,16 @@ export const createUserProfile = onUserCreate((event) => {
   });
 });
 
-/**
- * Funktion 2: Uppdaterar lekplatsstatistik
- */
 export const updatePlaygroundStats = onDocumentCreated("incheckningar/{checkinId}", async (event) => {
   const snap = event.data;
   if (!snap) {
-    logger.warn("Ingen data i eventet, avbryter.");
-    return null;
+    return logger.warn("Ingen data i eventet, avbryter.");
   }
   const checkinData = snap.data();
   const lekplatsId = checkinData.lekplatsId;
 
   if (!lekplatsId) {
-    logger.warn("Incheckningen saknar lekplatsId. Avbryter.");
-    return null;
+    return logger.warn("Incheckningen saknar lekplatsId. Avbryter.");
   }
   logger.info(`Uppdaterar statistik för lekplats: ${lekplatsId}`);
 
